@@ -146,8 +146,7 @@ public class PvPAreaPlugin extends JavaPlugin {
                                                         }
 
                                                         areasListener.setAreaSet(areaSet);
-                                                        sender.sendRichMessage("Added new PvP area at " +
-                                                                newArea.toString());
+                                                        sender.sendRichMessage("Added new PvP area at " + newArea);
                                                     } else {
                                                         sender.sendRichMessage("<red>Area overlaps existing areas. " +
                                                                 "Try different values.</red>");
@@ -173,9 +172,7 @@ public class PvPAreaPlugin extends JavaPlugin {
 
         LiteralCommandNode<CommandSourceStack> builtRoot = root.build();
         this.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS,
-                commands -> {
-            commands.registrar().register(builtRoot);
-        });
+                commands -> commands.registrar().register(builtRoot));
     }
 
     @Override

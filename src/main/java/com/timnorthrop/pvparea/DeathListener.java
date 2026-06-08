@@ -6,7 +6,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.entity.Player;
 import java.util.Set;
-import java.util.logging.Logger;
 
 public class DeathListener implements Listener {
     private Set<PvPArea> areaSet;

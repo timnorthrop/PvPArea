@@ -3,7 +3,6 @@ package com.timnorthrop.pvparea;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Set;
 
