@@ -1,0 +1,7 @@
+name: PvPArea
+version: 1.0
+main: com.timnorthrop.pvparea.PvPAreaPlugin
+description: Enables keepInventory and keepLevel within a defined area.
+author: Tim Northrop
+website: https://timnorthrop.com
+api-version: '26.1.2'
