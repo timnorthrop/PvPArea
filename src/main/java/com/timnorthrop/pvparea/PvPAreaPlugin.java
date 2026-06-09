@@ -113,8 +113,8 @@ public class PvPAreaPlugin extends JavaPlugin {
                                                                 IntegerArgumentType.getInteger(ctx, "z-max")
                                                         );
                                                     } catch (RuntimeException e) {
-                                                        sender.sendRichMessage("<red>Coordinate minimums must be less " +
-                                                                "than maximums.</red>");
+                                                        sender.sendRichMessage("<red>Coordinate minimums must be " +
+                                                                "less than maximums.</red>");
                                                         return Command.SINGLE_SUCCESS;
                                                     }
 
