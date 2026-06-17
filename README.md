@@ -27,7 +27,7 @@ Server must have Paper installed.
     - A future update might change the way these integers are saved so that a single area can more easily be removed
       from the list.
 - Designed for a small server and will not scale. A Set is scanned each time a player dies, checking to see if the death
-  occured in any of the active areas. With more players or a high number of areas, this could be time consuming.
+  occurred in any of the active areas. With more players or a high number of areas, this could be time consuming.
     - In future, to achieve O(1) lookup time, will replace the Set with a Map, mapping each chunk that overlaps an area
       to that area. On death, only if the player is in one of these mapped chunks will coordinates be checked to see if
       they are within the corresponding area.
