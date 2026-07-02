@@ -1,22 +1,34 @@
 package com.timnorthrop.pvparea;
 
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
 public class PvPArea {
     private final int xMin, xMax, zMin, zMax;
+    private final Set<Long> chunkKeys;
+    private final World world;
 
-    public PvPArea(int xMin, int xMax, int zMin, int zMax) {
+    public PvPArea(int xMin, int xMax, int zMin, int zMax, World world) {
         if (xMin >= xMax || zMin >= zMax) {
-            throw new RuntimeException("Coordinate minimums must be less than maximums");
+            throw new IllegalArgumentException("Coordinate minimums must be less than maximums");
         }
         this.xMin = xMin;
         this.xMax = xMax;
         this.zMin = zMin;
         this.zMax = zMax;
+        this.world = world;
+        chunkKeys = new HashSet<>();
+        for (int i = xMin; i <= xMax; i+=16) {
+            for (int j = zMin; j <= zMax; j+=16) {
+                chunkKeys.add(world.getChunkAt(i, j).getChunkKey());
+            }
+        }
     }
 
     public boolean hasPlayerWithin(Player player) {
@@ -24,23 +36,30 @@ public class PvPArea {
         int pX = playerLoc.getBlockX();
         int pZ = playerLoc.getBlockZ();
 
-        return pX >= xMin && pX <= xMax && pZ >= zMin && pZ <= zMax;
+        return player.getWorld().getUID().equals(world.getUID()) &&
+                pX >= xMin && pX <= xMax && pZ >= zMin && pZ <= zMax;
     }
 
     public boolean overlapsArea(PvPArea other) {
         if (this.equals(other)) {
             return true;
         }
-        return !(zMin >= other.getZMax() && zMax > other.getZMax()) &&
+        return world.getUID().equals(other.getWorld().getUID()) &&
+                !(zMin >= other.getZMax() && zMax > other.getZMax()) &&
                 !(zMin < other.getZMin() && zMax <= other.getZMin()) &&
                 !(xMin >= other.getXMax() && xMax > other.getXMax()) &&
                 !(xMin < other.getXMin() && xMax <= other.getXMin());
     }
 
-    public boolean overlapsAnyArea(Set<PvPArea> others) {
-        for (PvPArea other : others) {
-            if (this.overlapsArea(other)) {
-                return true;
+    public boolean overlapsAnyArea(Map<Long, Set<PvPArea>> others) {
+        for (long ck : chunkKeys) {
+            if (others.containsKey(ck)) {
+                Set<PvPArea> areasInChunk = others.get(ck);
+                for (PvPArea a : areasInChunk) {
+                    if (overlapsArea(a)) {
+                        return true;
+                    }
+                }
             }
         }
         return false;
@@ -62,9 +81,22 @@ public class PvPArea {
         return zMax;
     }
 
+    public World getWorld() {
+        return world;
+    }
+
+    public Set<Long> getChunkKeys() {
+        return chunkKeys;
+    }
+
     @Override
     public String toString() {
-        return "(x-min=" + xMin + ", x-max=" + xMax + ", z-min=" + zMin + ", z-max=" + zMax + ")";
+        return "(world=" + world.getName() +
+                ", x-min=" + xMin +
+                ", x-max=" + xMax +
+                ", z-min=" + zMin +
+                ", z-max=" + zMax +
+                ")";
     }
 
     @Override
@@ -77,8 +109,11 @@ public class PvPArea {
             return false;
         }
 
-        return this.xMin == area.getXMin() && this.xMax == area.getXMax()
-                && this.zMin == area.getZMin() && this.zMax == area.getZMax();
+        return world.getUID().equals(area.getWorld().getUID()) &&
+                xMin == area.getXMin() &&
+                xMax == area.getXMax() &&
+                zMin == area.getZMin() &&
+                zMax == area.getZMax();
     }
 
     @Override
