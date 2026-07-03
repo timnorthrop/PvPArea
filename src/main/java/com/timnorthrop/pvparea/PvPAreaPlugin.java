@@ -70,7 +70,7 @@ public class PvPAreaPlugin extends JavaPlugin {
                             newAreasInts.add(xMax);
                             newAreasInts.add(zMin);
                             newAreasInts.add(zMax);
-                            getLogger().info("Detected PvP area at " + area.toString());
+                            getLogger().info("Detected PvP area at " + area);
                         } else {
                             getLogger().info("Area overlaps existing area(s) - removed from PDC of world " +
                                     w.getKey());
