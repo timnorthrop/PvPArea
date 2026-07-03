@@ -4,6 +4,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
@@ -11,7 +12,7 @@ import java.util.Set;
 
 public class PvPArea {
     private final int xMin, xMax, zMin, zMax;
-    private final Set<Long> chunkKeys;
+    private final Set<AreaChunkKey> chunkKeys;
     private final World world;
 
     public PvPArea(int xMin, int xMax, int zMin, int zMax, World world) {
@@ -23,12 +24,20 @@ public class PvPArea {
         this.zMin = zMin;
         this.zMax = zMax;
         this.world = world;
-        chunkKeys = new HashSet<>();
-        for (int i = xMin; i <= xMax; i+=16) {
-            for (int j = zMin; j <= zMax; j+=16) {
-                chunkKeys.add(world.getChunkAt(i, j).getChunkKey());
+        Set<AreaChunkKey> keys = new HashSet<>();
+
+        int minChunkX = xMin >> 4;
+        int maxChunkX = xMax >> 4;
+        int minChunkZ = zMin >> 4;
+        int maxChunkZ = zMax >> 4;
+
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                keys.add(AreaChunkKey.fromChunk(world, chunkX, chunkZ));
             }
         }
+
+        chunkKeys = Collections.unmodifiableSet(keys);
     }
 
     public boolean hasPlayerWithin(Player player) {
@@ -36,7 +45,7 @@ public class PvPArea {
         int pX = playerLoc.getBlockX();
         int pZ = playerLoc.getBlockZ();
 
-        return player.getWorld().getUID().equals(world.getUID()) &&
+        return player.getWorld().getKey().equals(world.getKey()) &&
                 pX >= xMin && pX <= xMax && pZ >= zMin && pZ <= zMax;
     }
 
@@ -45,24 +54,24 @@ public class PvPArea {
             return true;
         }
         return world.getUID().equals(other.getWorld().getUID()) &&
-                !(zMin >= other.getZMax() && zMax > other.getZMax()) &&
-                !(zMin < other.getZMin() && zMax <= other.getZMin()) &&
-                !(xMin >= other.getXMax() && xMax > other.getXMax()) &&
-                !(xMin < other.getXMin() && xMax <= other.getXMin());
+                xMin <= other.getXMax() &&
+                xMax >= other.getXMin() &&
+                zMin <= other.getZMax() &&
+                zMax >= other.getZMin();
     }
 
-    public boolean overlapsAnyArea(Map<Long, Set<PvPArea>> others) {
-        for (long ck : chunkKeys) {
-            if (others.containsKey(ck)) {
-                Set<PvPArea> areasInChunk = others.get(ck);
+    public boolean overlapsNoAreas(Map<AreaChunkKey, Set<PvPArea>> others) {
+        for (AreaChunkKey ck : chunkKeys) {
+            Set<PvPArea> areasInChunk = others.get(ck);
+            if (areasInChunk != null) {
                 for (PvPArea a : areasInChunk) {
                     if (overlapsArea(a)) {
-                        return true;
+                        return false;
                     }
                 }
             }
         }
-        return false;
+        return true;
     }
 
     public int getXMin() {
@@ -85,13 +94,13 @@ public class PvPArea {
         return world;
     }
 
-    public Set<Long> getChunkKeys() {
+    public Set<AreaChunkKey> getChunkKeys() {
         return chunkKeys;
     }
 
     @Override
     public String toString() {
-        return "(world=" + world.getName() +
+        return "(" + world.getKey() +
                 ", x-min=" + xMin +
                 ", x-max=" + xMax +
                 ", z-min=" + zMin +
@@ -109,7 +118,7 @@ public class PvPArea {
             return false;
         }
 
-        return world.getUID().equals(area.getWorld().getUID()) &&
+        return world.getKey().equals(area.getWorld().getKey()) &&
                 xMin == area.getXMin() &&
                 xMax == area.getXMax() &&
                 zMin == area.getZMin() &&
@@ -118,6 +127,6 @@ public class PvPArea {
 
     @Override
     public int hashCode() {
-        return Objects.hash(xMin, xMax, zMin, zMax);
+        return Objects.hash(world.getKey(), xMin, xMax, zMin, zMax);
     }
 }

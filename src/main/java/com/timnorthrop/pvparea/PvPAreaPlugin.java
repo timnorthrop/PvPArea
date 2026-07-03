@@ -9,6 +9,7 @@ import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -17,14 +18,21 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.*;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.HashMap;
+
+import static net.kyori.adventure.text.Component.text;
 
 public class PvPAreaPlugin extends JavaPlugin {
-    private final Map<Long, Set<PvPArea>> areaMap = new HashMap<>();
+    private final Map<AreaChunkKey, Set<PvPArea>> areaMap = new HashMap<>();
 
     private List<PersistentDataContainer> pdcs;
 
-    public Map<Long, Set<PvPArea>> getAreaMap() {
+    public Map<AreaChunkKey, Set<PvPArea>> getAreaMap() {
         return this.areaMap;
     }
 
@@ -38,11 +46,14 @@ public class PvPAreaPlugin extends JavaPlugin {
             PersistentDataContainer pdc = w.getPersistentDataContainer();
             pdcs.add(pdc);
             int[] areasInts = pdc.get(Keys.PVP_AREA, PersistentDataType.INTEGER_ARRAY);
+            if (areasInts == null) {
+                continue;
+            }
+            List<Integer> newAreasInts = new ArrayList<>();
 
-            if (areasInts == null || areasInts.length == 0) {
-                getLogger().info("No areas found in PDC. Proceeding with 0 PvPAreas...");
-            } else if (areasInts.length % 4 != 0) {
-                getLogger().info("PDC integer array contains an incompatible number of ints.");
+            if (areasInts.length % 4 != 0) {
+                getLogger().info("PDC integer array for world " + w.getKey() + " contains an incompatible " +
+                        "number of ints");
             } else {
                 for (int i = 0; i < areasInts.length; i += 4) {
                     int xMin = areasInts[i];
@@ -53,15 +64,24 @@ public class PvPAreaPlugin extends JavaPlugin {
                     try {
                         PvPArea area = new PvPArea(xMin, xMax, zMin, zMax, w);
 
-                        if (!area.overlapsAnyArea(areaMap)) {
+                        if (area.overlapsNoAreas(areaMap)) {
                             addAreaToMap(area.getChunkKeys(), area, areaMap);
+                            newAreasInts.add(xMin);
+                            newAreasInts.add(xMax);
+                            newAreasInts.add(zMin);
+                            newAreasInts.add(zMax);
+                            getLogger().info("Detected PvP area at " + area.toString());
                         } else {
-                            getLogger().info("Area overlaps existing area(s). Skipping...");
+                            getLogger().info("Area overlaps existing area(s) - removed from PDC of world " +
+                                    w.getKey());
                         }
                     } catch (RuntimeException e) {
-                        getLogger().info("Invalid area. Skipping...");
+                        getLogger().info("Invalid area - removed from PDC of world " + w.getKey());
                     }
                 }
+
+                int[] arr = newAreasInts.stream().mapToInt(i -> i).toArray();
+                pdc.set(Keys.PVP_AREA, PersistentDataType.INTEGER_ARRAY, arr);
             }
         }
 
@@ -82,29 +102,15 @@ public class PvPAreaPlugin extends JavaPlugin {
                         return Command.SINGLE_SUCCESS;
                     }
 
-                    Set<String> allAreas = new HashSet<>();
+                    Set<PvPArea> allAreas = new HashSet<>();
                     for (Set<PvPArea> set : areaMap.values()) {
-                        for (PvPArea area : set) {
-                            allAreas.add(area.toString());
-                        }
+                        allAreas.addAll(set);
                     }
 
-                    StringBuilder list = new StringBuilder();
-                    int i = 1;
-                    for (String s : allAreas) {
-                        list.append("area").append(i).append(": ").append(s);
-                        if (i == allAreas.size()) {
-                            list.append(", ");
-                        }
-                        i++;
-                    }
-
-                    sender.sendRichMessage("There <isare> " + allAreas.size() +
-                                    " PvP <areas> currently active.<newline><list>",
-                            Placeholder.component("isare", Component.text(allAreas.size() == 1 ? "is" : "are")),
-                            Placeholder.component("areas", Component.text(allAreas.size() == 1 ? "area" : "areas")),
-                            Placeholder.component("list", Component.text(list.toString())));
-
+                    sender.sendRichMessage("There <isare> " + allAreas.size() + " PvP <areas> currently active.",
+                            Placeholder.component("isare", text(allAreas.size() == 1 ? "is" : "are")),
+                            Placeholder.component("areas", text(allAreas.size() == 1 ? "area" : "areas")));
+                    sender.sendRichMessage("<list>", Placeholder.component("list", getList(allAreas)));
                     return Command.SINGLE_SUCCESS;
                 })
         );
@@ -136,7 +142,7 @@ public class PvPAreaPlugin extends JavaPlugin {
 
                                                     PersistentDataContainer pdc = world.getPersistentDataContainer();
 
-                                                    if (!newArea.overlapsAnyArea(areaMap)) {
+                                                    if (newArea.overlapsNoAreas(areaMap)) {
                                                         addAreaToMap(newArea.getChunkKeys(), newArea, areaMap);
                                                         int[] areasInts = pdc.get(Keys.PVP_AREA,
                                                                 PersistentDataType.INTEGER_ARRAY);
@@ -194,8 +200,20 @@ public class PvPAreaPlugin extends JavaPlugin {
                 commands -> commands.registrar().register(builtRoot));
     }
 
-    private void addAreaToMap(Set<Long> chunkKeys, PvPArea area, Map<Long, Set<PvPArea>> areaMap) {
-        for (long ck : chunkKeys) {
+    private static Component getList(Set<PvPArea> allAreas) {
+        Component list = text("");
+        int i = 1;
+        for (PvPArea area : allAreas) {
+            list = list.append(text("area" + i).color(NamedTextColor.YELLOW))
+                    .append(text(": " + area))
+                    .append(text(i == allAreas.size() ? "" : ", "));
+            i++;
+        }
+        return list;
+    }
+
+    private void addAreaToMap(Set<AreaChunkKey> chunkKeys, PvPArea area, Map<AreaChunkKey, Set<PvPArea>> areaMap) {
+        for (AreaChunkKey ck : chunkKeys) {
             areaMap.putIfAbsent(ck, new HashSet<>());
             areaMap.get(ck).add(area);
         }
