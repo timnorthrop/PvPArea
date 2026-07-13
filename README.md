@@ -17,7 +17,7 @@ Server must have Paper installed.
 *   Commands:
     *   `/pvparea list`: available to all players - lists all active PvP areas
     *   `/pvparea clear-all`: operator required - removes all active areas
-    *   `/pvparea add <x-min> <x-max> <z-min> <z-max>`: operator required - adds an area with the given bounds (inclusive)
+    *   `/pvparea add <x-min> <x-max> <z-min> <z-max> <world>`: operator required - adds an area with the given bounds (inclusive) in the given world
 *   When players die within a PvP area, they respawn at their normal respawn point, retaining all inventory items and experience.
 *   No inventory items or experience are dropped upon death within a PvP area.
 *   Players are notified that they died within an area and that keepInventory and keepLevel were enabled.
